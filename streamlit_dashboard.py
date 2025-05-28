@@ -126,17 +126,19 @@ def get_rating_and_color(stock):
         return "Poor", "#d32f2f", "poor"
 
 def format_currency(value):
-    """Format currency values"""
+    """Format currency values - values are already in Crores"""
     if pd.isna(value) or value == 0:
         return "N/A"
-    if value >= 10000:
+    
+    # Values are already in Crores, so just format them nicely
+    if value >= 100000:  # 1 Lakh Crores and above
+        return f"₹{value/1000:.0f}K Cr"
+    elif value >= 10000:  # 10,000 Cr and above  
+        return f"₹{value:,.0f}Cr"
+    elif value >= 1000:   # 1,000 Cr and above
+        return f"₹{value:,.0f}Cr"
+    else:                 # Below 1,000 Cr
         return f"₹{value:.0f}Cr"
-    elif value >= 1000:
-        return f"₹{value:.1f}Cr"
-    elif value >= 100:
-        return f"₹{value:.0f}Cr"
-    else:
-        return f"₹{value:.2f}Cr"
 
 def format_number(value, suffix=""):
     """Format numerical values"""
