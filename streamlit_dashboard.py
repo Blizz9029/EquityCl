@@ -130,11 +130,13 @@ def format_currency(value):
     if pd.isna(value) or value == 0:
         return "N/A"
     if value >= 10000:
-        return f"₹{value/100:.0f}Cr"
+        return f"₹{value:.0f}Cr"
+    elif value >= 1000:
+        return f"₹{value:.1f}Cr"
     elif value >= 100:
-        return f"₹{value/100:.1f}Cr"
+        return f"₹{value:.0f}Cr"
     else:
-        return f"₹{value:.2f}L"
+        return f"₹{value:.2f}Cr"
 
 def format_number(value, suffix=""):
     """Format numerical values"""
