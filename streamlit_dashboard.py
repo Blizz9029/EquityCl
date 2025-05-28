@@ -313,7 +313,7 @@ def main():
                 """, unsafe_allow_html=True)
     
     # Tabs for different views
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Stock Analysis", "📈 Market Overview", "🎯 Top Picks", "📋 Detailed View"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Stock Analysis", "📈 Market Overview", "📊 Performance Charts", "🎯 Top Picks", "📋 Detailed View"])
     
     with tab1:
         st.subheader("📊 Stock Analysis & Screening")
@@ -426,6 +426,319 @@ def main():
             st.info("📊 Apply filters to see market overview")
     
     with tab3:
+        st.subheader("📊 Performance Charts & Analysis")
+        
+        if len(filtered_data) > 0:
+            # Growth & Returns Ranking
+            st.markdown("### 🏆 Growth & Returns Ranking")
+            st.markdown("*Comprehensive ranking based on growth metrics and returns*")
+            
+            # Create ranking based on growth and returns
+            ranking_data = filtered_data.copy()
+            
+            # Calculate composite growth score
+            def calculate_growth_score(row):
+                score = 0
+                weights = 0
+                
+                # 1Y Return (30% weight)
+                if pd.notna(row.get('Return over 1year', 0)):
+                    score += row['Return over 1year'] * 0.3
+                    weights += 0.3
+                
+                # 3Y Return (25% weight)  
+                if pd.notna(row.get('Return over 3years', 0)):
+                    score += row['Return over 3years'] * 0.25
+                    weights += 0.25
+                
+                # Sales Growth (20% weight)
+                if pd.notna(row.get('Sales growth 5Years', 0)):
+                    score += row['Sales growth 5Years'] * 0.2
+                    weights += 0.2
+                
+                # Profit Growth (15% weight)
+                if pd.notna(row.get('Profit growth 5Years', 0)):
+                    score += row['Profit growth 5Years'] * 0.15
+                    weights += 0.15
+                
+                # ROE (10% weight)
+                if pd.notna(row.get('Return on equity', 0)):
+                    score += row['Return on equity'] * 0.1
+                    weights += 0.1
+                
+                return score / weights if weights > 0 else 0
+            
+            ranking_data['Growth_Score'] = ranking_data.apply(calculate_growth_score, axis=1)
+            ranking_data = ranking_data.sort_values('Growth_Score', ascending=False)
+            
+            # Display top 15 ranked stocks
+            st.markdown("#### 🥇 Top Growth & Returns Champions")
+            
+            for i, (_, stock) in enumerate(ranking_data.head(15).iterrows(), 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"#{i}"
+                
+                col1, col2, col3, col4, col5 = st.columns([1, 3, 1.5, 1.5, 1.5])
+                
+                with col1:
+                    st.markdown(f"**{medal}**")
+                
+                with col2:
+                    st.markdown(f"**{stock['Name']}**")
+                    st.caption(f"{stock['NSE Code']} • {stock.get('Industry', 'N/A')}")
+                
+                with col3:
+                    if pd.notna(stock.get('Return over 1year')):
+                        ret_1y = stock['Return over 1year']
+                        color = "🟢" if ret_1y > 20 else "🟡" if ret_1y > 0 else "🔴"
+                        st.markdown(f"{color} **1Y:** {ret_1y:.1f}%")
+                    else:
+                        st.markdown("**1Y:** N/A")
+                
+                with col4:
+                    if pd.notna(stock.get('Return over 3years')):
+                        ret_3y = stock['Return over 3years']
+                        color = "🟢" if ret_3y > 15 else "🟡" if ret_3y > 5 else "🔴"
+                        st.markdown(f"{color} **3Y:** {ret_3y:.1f}%")
+                    else:
+                        st.markdown("**3Y:** N/A")
+                
+                with col5:
+                    roe = stock['Return on equity']
+                    color = "🟢" if roe > 20 else "🟡" if roe > 15 else "🔴"
+                    st.markdown(f"{color} **ROE:** {roe:.1f}%")
+                
+                st.markdown("---")
+            
+            # Individual Performance Charts
+            st.markdown("### 📈 Performance Analysis Charts")
+            
+            # 1. Returns Comparison Charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 🚀 1-Year Returns Leaders")
+                returns_1y = filtered_data[['Name', 'Return over 1year']].dropna()
+                if len(returns_1y) > 0:
+                    returns_1y = returns_1y.sort_values('Return over 1year', ascending=True).tail(15)
+                    
+                    # Create horizontal bar chart
+                    fig_data = []
+                    colors = []
+                    for _, row in returns_1y.iterrows():
+                        ret = row['Return over 1year']
+                        if ret > 50:
+                            colors.append('#2e7d32')  # Dark green
+                        elif ret > 20:
+                            colors.append('#66bb6a')  # Light green  
+                        elif ret > 0:
+                            colors.append('#ffb74d')  # Orange
+                        else:
+                            colors.append('#f44336')  # Red
+                        fig_data.append({'Name': row['Name'][:20], 'Return': ret})
+                    
+                    chart_df = pd.DataFrame(fig_data)
+                    
+                    # Display as horizontal bar chart using Streamlit
+                    st.bar_chart(chart_df.set_index('Name')['Return'], height=400)
+                else:
+                    st.info("No 1-year return data available")
+            
+            with col2:
+                st.markdown("#### 📊 3-Year Returns Leaders")  
+                returns_3y = filtered_data[['Name', 'Return over 3years']].dropna()
+                if len(returns_3y) > 0:
+                    returns_3y = returns_3y.sort_values('Return over 3years', ascending=True).tail(15)
+                    
+                    fig_data = []
+                    for _, row in returns_3y.iterrows():
+                        fig_data.append({'Name': row['Name'][:20], 'Return': row['Return over 3years']})
+                    
+                    chart_df = pd.DataFrame(fig_data)
+                    st.bar_chart(chart_df.set_index('Name')['Return'], height=400)
+                else:
+                    st.info("No 3-year return data available")
+            
+            # 2. Profitability Charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### 💪 ROE Champions")
+                roe_data = filtered_data[['Name', 'Return on equity']].sort_values('Return on equity', ascending=True).tail(15)
+                
+                fig_data = []
+                for _, row in roe_data.iterrows():
+                    fig_data.append({'Name': row['Name'][:20], 'ROE': row['Return on equity']})
+                
+                chart_df = pd.DataFrame(fig_data)
+                st.bar_chart(chart_df.set_index('Name')['ROE'], height=400)
+            
+            with col2:
+                st.markdown("#### 🎯 ROIC Leaders")
+                roic_data = filtered_data[['Name', 'Return on invested capital']].dropna().sort_values('Return on invested capital', ascending=True).tail(15)
+                
+                if len(roic_data) > 0:
+                    fig_data = []
+                    for _, row in roic_data.iterrows():
+                        fig_data.append({'Name': row['Name'][:20], 'ROIC': row['Return on invested capital']})
+                    
+                    chart_df = pd.DataFrame(fig_data)
+                    st.bar_chart(chart_df.set_index('Name')['ROIC'], height=400)
+                else:
+                    st.info("No ROIC data available")
+            
+            # 3. Margin Analysis
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'NPM last year' in filtered_data.columns:
+                    st.markdown("#### 💰 Net Profit Margin Leaders")
+                    npm_data = filtered_data[['Name', 'NPM last year']].dropna().sort_values('NPM last year', ascending=True).tail(15)
+                    
+                    if len(npm_data) > 0:
+                        fig_data = []
+                        for _, row in npm_data.iterrows():
+                            fig_data.append({'Name': row['Name'][:20], 'NPM': row['NPM last year']})
+                        
+                        chart_df = pd.DataFrame(fig_data)
+                        st.bar_chart(chart_df.set_index('Name')['NPM'], height=400)
+                    else:
+                        st.info("No NPM data available")
+            
+            with col2:
+                # Calculate Operating Profit Margin if possible
+                if 'Operating profit' in filtered_data.columns and 'Sales' in filtered_data.columns:
+                    st.markdown("#### 🏭 Operating Profit Margin Leaders")
+                    
+                    # Calculate OPM
+                    opm_data = filtered_data.copy()
+                    opm_data['OPM'] = (opm_data['Operating profit'] / opm_data['Sales']) * 100
+                    opm_data = opm_data[['Name', 'OPM']].dropna()
+                    opm_data = opm_data[opm_data['OPM'] > 0].sort_values('OPM', ascending=True).tail(15)
+                    
+                    if len(opm_data) > 0:
+                        fig_data = []
+                        for _, row in opm_data.iterrows():
+                            fig_data.append({'Name': row['Name'][:20], 'OPM': row['OPM']})
+                        
+                        chart_df = pd.DataFrame(fig_data)
+                        st.bar_chart(chart_df.set_index('Name')['OPM'], height=400)
+                    else:
+                        st.info("No OPM data available")
+                else:
+                    st.info("Operating profit data not available for OPM calculation")
+            
+            # 4. Growth Charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if 'Sales growth 5Years' in filtered_data.columns:
+                    st.markdown("#### 📈 Sales Growth Champions")
+                    sales_growth = filtered_data[['Name', 'Sales growth 5Years']].dropna().sort_values('Sales growth 5Years', ascending=True).tail(15)
+                    
+                    if len(sales_growth) > 0:
+                        fig_data = []
+                        for _, row in sales_growth.iterrows():
+                            fig_data.append({'Name': row['Name'][:20], 'Sales_Growth': row['Sales growth 5Years']})
+                        
+                        chart_df = pd.DataFrame(fig_data)
+                        st.bar_chart(chart_df.set_index('Name')['Sales_Growth'], height=400)
+                    else:
+                        st.info("No sales growth data available")
+            
+            with col2:
+                if 'Profit growth 5Years' in filtered_data.columns:
+                    st.markdown("#### 💹 Profit Growth Champions")
+                    profit_growth = filtered_data[['Name', 'Profit growth 5Years']].dropna().sort_values('Profit growth 5Years', ascending=True).tail(15)
+                    
+                    if len(profit_growth) > 0:
+                        fig_data = []
+                        for _, row in profit_growth.iterrows():
+                            fig_data.append({'Name': row['Name'][:20], 'Profit_Growth': row['Profit growth 5Years']})
+                        
+                        chart_df = pd.DataFrame(fig_data)
+                        st.bar_chart(chart_df.set_index('Name')['Profit_Growth'], height=400)
+                    else:
+                        st.info("No profit growth data available")
+            
+            # 5. Valuation vs Performance Scatter
+            st.markdown("### 🎯 Valuation vs Performance Analysis")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("#### P/E vs ROE Analysis")
+                pe_roe_data = filtered_data[['Name', 'Price to Earning', 'Return on equity']].dropna()
+                
+                if len(pe_roe_data) > 0:
+                    # Create scatter plot data
+                    scatter_data = pe_roe_data.copy()
+                    scatter_data = scatter_data[(scatter_data['Price to Earning'] > 0) & (scatter_data['Price to Earning'] < 100)]
+                    
+                    if len(scatter_data) > 0:
+                        # Since we can't use plotly, show a simple table of best value stocks
+                        st.markdown("**Best Value Picks (Low P/E, High ROE):**")
+                        
+                        # Calculate value score (ROE/PE ratio)
+                        scatter_data['Value_Score'] = scatter_data['Return on equity'] / scatter_data['Price to Earning']
+                        top_value = scatter_data.nlargest(10, 'Value_Score')
+                        
+                        for i, (_, stock) in enumerate(top_value.iterrows(), 1):
+                            st.markdown(f"{i}. **{stock['Name']}** - P/E: {stock['Price to Earning']:.1f}, ROE: {stock['Return on equity']:.1f}%")
+            
+            with col2:
+                st.markdown("#### Market Cap vs Growth")
+                if 'Market Capitalization' in filtered_data.columns and 'Sales growth 5Years' in filtered_data.columns:
+                    mcap_growth = filtered_data[['Name', 'Market Capitalization', 'Sales growth 5Years']].dropna()
+                    
+                    # Show small cap high growth stocks
+                    st.markdown("**Small Cap High Growth Stocks:**")
+                    small_cap_growth = mcap_growth[mcap_growth['Market Capitalization'] < 10000]  # Less than 10K Cr
+                    small_cap_growth = small_cap_growth[small_cap_growth['Sales growth 5Years'] > 15]  # >15% growth
+                    small_cap_growth = small_cap_growth.sort_values('Sales growth 5Years', ascending=False)
+                    
+                    if len(small_cap_growth) > 0:
+                        for i, (_, stock) in enumerate(small_cap_growth.head(8).iterrows(), 1):
+                            st.markdown(f"{i}. **{stock['Name']}** - MCap: {format_currency(stock['Market Capitalization'])}, Growth: {stock['Sales growth 5Years']:.1f}%")
+                    else:
+                        st.info("No small cap high growth stocks found")
+            
+            # Summary Statistics
+            st.markdown("### 📊 Performance Summary Statistics")
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.markdown("#### 🚀 Returns Summary")
+                returns_1y_avg = filtered_data['Return over 1year'].mean()
+                returns_1y_max = filtered_data['Return over 1year'].max()
+                st.metric("Avg 1Y Return", f"{returns_1y_avg:.1f}%" if pd.notna(returns_1y_avg) else "N/A")
+                st.metric("Best 1Y Return", f"{returns_1y_max:.1f}%" if pd.notna(returns_1y_max) else "N/A")
+            
+            with col2:
+                st.markdown("#### 💪 Profitability Summary")
+                roe_avg = filtered_data['Return on equity'].mean()
+                roe_max = filtered_data['Return on equity'].max()
+                st.metric("Avg ROE", f"{roe_avg:.1f}%")
+                st.metric("Best ROE", f"{roe_max:.1f}%")
+            
+            with col3:
+                st.markdown("#### 📈 Growth Summary")
+                if 'Sales growth 5Years' in filtered_data.columns:
+                    sales_avg = filtered_data['Sales growth 5Years'].mean()
+                    sales_max = filtered_data['Sales growth 5Years'].max()
+                    st.metric("Avg Sales Growth", f"{sales_avg:.1f}%" if pd.notna(sales_avg) else "N/A")
+                    st.metric("Best Sales Growth", f"{sales_max:.1f}%" if pd.notna(sales_max) else "N/A")
+                
+            with col4:
+                st.markdown("#### 💰 Valuation Summary")
+                pe_avg = filtered_data['Price to Earning'].mean()
+                pe_min = filtered_data['Price to Earning'].min()
+                st.metric("Avg P/E", f"{pe_avg:.1f}")
+                st.metric("Lowest P/E", f"{pe_min:.1f}")
+        
+        else:
+            st.info("📊 Apply filters to see performance charts")
+
+    with tab5:
         st.subheader("🎯 Top Investment Picks")
         
         # Separate by ratings
